@@ -1,0 +1,13 @@
+# Credenciais
+.env
+
+# Dados de runtime
+.openclaw/
+backups/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Dev tooling
+.claude/

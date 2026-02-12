@@ -1,0 +1,70 @@
+#!/bin/bash
+# ============================================
+# OpenClaw Stack - CLI Wrapper
+# ============================================
+# Uso: ./claw <comando>
+# Ex:  ./claw channels login
+#      ./claw config list
+#      ./claw dashboard
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Carregar .env
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    set -a
+    source "$SCRIPT_DIR/.env"
+    set +a
+fi
+
+STACK="${OPENCLAW_STACK_NAME:-openclaw}"
+
+# Sem argumentos: mostrar ajuda
+if [ $# -eq 0 ]; then
+    echo ""
+    echo "OpenClaw Stack - CLI"
+    echo ""
+    echo "Uso: ./claw <comando>"
+    echo ""
+    echo "Comandos especiais:"
+    echo "  dashboard    Mostra a URL do dashboard com token"
+    echo ""
+    echo "Exemplos:"
+    echo "  ./claw config list          Ver configuracoes"
+    echo "  ./claw channels login       Conectar WhatsApp/Telegram"
+    echo "  ./claw channels status      Status das conexoes"
+    echo "  ./claw pairing list         Dispositivos pareados"
+    echo ""
+    exit 0
+fi
+
+# Comando especial: dashboard
+if [ "$1" = "dashboard" ]; then
+    if [ -z "$OPENCLAW_GATEWAY_TOKEN" ]; then
+        echo "[ERRO] Token nao encontrado. Rode ./setup.sh primeiro."
+        exit 1
+    fi
+    echo ""
+    if [ -n "$OPENCLAW_DOMAIN" ]; then
+        echo "Dashboard: https://${OPENCLAW_DOMAIN}/?token=${OPENCLAW_GATEWAY_TOKEN}"
+    else
+        echo "Dashboard: http://localhost:18789/?token=${OPENCLAW_GATEWAY_TOKEN}"
+    fi
+    echo ""
+    exit 0
+fi
+
+# Encontrar container rodando no Swarm
+CONTAINER_ID=$(docker ps -q --filter "label=com.docker.swarm.service.name=${STACK}_openclaw" --filter "status=running" 2>/dev/null | head -1)
+
+if [ -n "$CONTAINER_ID" ]; then
+    if [ -t 1 ]; then
+        TTY_FLAG="-it"
+    else
+        TTY_FLAG="-i"
+    fi
+    docker exec $TTY_FLAG "$CONTAINER_ID" node dist/index.js "$@"
+else
+    echo "[ERRO] Servico OpenClaw nao esta rodando."
+    echo "       Verifique: docker service ps ${STACK}_openclaw"
+    exit 1
+fi

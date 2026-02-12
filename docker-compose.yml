@@ -1,0 +1,61 @@
+version: "3.7"
+
+services:
+  # OpenClaw Gateway
+  openclaw:
+    image: ${OPENCLAW_STACK_NAME:-openclaw}:latest
+    command: ["node", "dist/index.js", "gateway", "--allow-unconfigured", "--bind", "lan"]
+
+    volumes:
+      - ${OPENCLAW_BASE_PATH:-.}/.openclaw:/root/.openclaw
+
+    environment:
+      - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
+      - OPENCLAW_GATEWAY_MODE=local
+
+    networks:
+      - openclaw-net
+
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 512M
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=${OPENCLAW_TRAEFIK_NETWORK:-traefik-public}
+        - traefik.http.routers.${OPENCLAW_STACK_NAME:-openclaw}.entryPoints=websecure
+        - "traefik.http.routers.${OPENCLAW_STACK_NAME:-openclaw}.rule=Host(`${OPENCLAW_DOMAIN}`)"
+        - traefik.http.routers.${OPENCLAW_STACK_NAME:-openclaw}.tls=true
+        - traefik.http.routers.${OPENCLAW_STACK_NAME:-openclaw}.tls.certresolver=letsencryptresolver
+        - traefik.http.routers.${OPENCLAW_STACK_NAME:-openclaw}.service=${OPENCLAW_STACK_NAME:-openclaw}
+        - traefik.http.services.${OPENCLAW_STACK_NAME:-openclaw}.loadbalancer.server.port=18789
+
+  # Backup Sidecar (diario, retencao de 7 dias)
+  backup:
+    image: alpine:latest
+    command: sh /usr/local/bin/backup-daemon.sh
+    volumes:
+      - ${OPENCLAW_BASE_PATH:-.}/.openclaw:/data:ro
+      - ${OPENCLAW_BASE_PATH:-.}/backups:/backups
+      - ${OPENCLAW_BASE_PATH:-.}/backup-daemon.sh:/usr/local/bin/backup-daemon.sh:ro
+    networks:
+      - openclaw-net
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          memory: 128M
+
+networks:
+  openclaw-net:
+    external: true
+    name: ${OPENCLAW_TRAEFIK_NETWORK:-traefik-public}
