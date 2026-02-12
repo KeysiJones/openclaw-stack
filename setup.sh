@@ -131,10 +131,20 @@ if [ ! -f .openclaw/openclaw.json ]; then
 {
   "gateway": {
     "trustedProxies": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+  },
+  "channels": {
+    "whatsapp": {}
+  },
+  "plugins": {
+    "entries": {
+      "whatsapp": {
+        "enabled": true
+      }
+    }
   }
 }
 JSONEOF
-    ok "openclaw.json criado com trustedProxies"
+    ok "openclaw.json criado (trustedProxies + WhatsApp habilitado)"
 else
     info "openclaw.json ja existe"
 fi
